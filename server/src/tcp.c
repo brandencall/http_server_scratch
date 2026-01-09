@@ -6,7 +6,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#define PORT 7777 
+#define PORT 7777
 #define LISTEN_BACKLOG 128
 
 int socket_init() {
@@ -47,3 +47,5 @@ int wait_for_client(int socketFD) {
     printf("client accepted\n");
     return clientFD;
 }
+
+void write_to_client(char *msg, int msgLen, int clientFD) { write(clientFD, msg, msgLen); }
