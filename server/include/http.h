@@ -24,12 +24,13 @@ typedef struct {
 
 void handle_http(int clientFD);
 bool found_header_end(char *headers, size_t headersLen);
-void parse_header(char *headers, size_t headersLen);
+Header parse_header(char *headers, size_t headersLen);
 StartLine parse_startline(char *headers, size_t headersLen);
 char *parse_startline_str(char *headers, size_t headersLen);
 void set_starline_method(StartLine *startLine, char *startLineStr);
 void set_startline_request_target(StartLine *startLine, char *startLineStr);
 void set_startline_version(StartLine *startLine, char *startLineStr);
+void print_header(Header *header);
 
 char *parse_host(char *headers);
 char *get_header_entry(char *fullHeader, char *header);

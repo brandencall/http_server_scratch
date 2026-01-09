@@ -8,7 +8,7 @@
 
 #define CHUNK_SIZE 4096
 #define MAX_HEADER_LENGTH 655353
-// Using 6 becuase DELETE is the largest expect method
+// Using 6 becuase DELETE is the largest expected method
 #define MAX_METHOD_LENTH 6
 
 void handle_http(int clientFD) {
@@ -32,9 +32,18 @@ void handle_http(int clientFD) {
     headersLen++;
     headers = realloc(headers, headersLen);
     headers[headersLen - 1] = '\0';
-    printf("client said: %s\n", headers);
-    parse_header(headers, headersLen);
+    Header header = parse_header(headers, headersLen);
+    print_header(&header);
     free(headers);
+}
+
+void print_header(Header *header) {
+    printf("StartLine.Method: %d\n", header->StartLine.Method);
+    printf("StartLine.RequestTarget: %s\n", header->StartLine.RequestTarget);
+    printf("StartLine.Version: %s\n", header->StartLine.Version);
+    printf("header.Host: %s\n", header->Host);
+    printf("header.UserAgent: %s\n", header->UserAgent);
+    printf("header.Accept: %s\n", header->Accept);
 }
 
 bool found_header_end(char *headers, size_t headersLen) {
@@ -50,21 +59,14 @@ bool found_header_end(char *headers, size_t headersLen) {
     return false;
 }
 
-void parse_header(char *headers, size_t headersLen) {
+Header parse_header(char *headers, size_t headersLen) {
     Header header;
     header.StartLine = parse_startline(headers, headersLen);
     header.Host = get_header_entry(headers, "Host");
-    printf("Host parsed: %s\n", header.Host);
     header.UserAgent = get_header_entry(headers, "User-Agent");
-    printf("UserAgent parsed: %s\n", header.UserAgent);
     header.Accept = get_header_entry(headers, "Accept");
-    printf("Accept parsed: %s\n", header.Accept);
     header.AcceptLanguage = get_header_entry(headers, "Accept-Language");
-    printf("Accept-Language parsed: %s\n", header.AcceptLanguage);
-    free(header.Host);
-    free(header.UserAgent);
-    free(header.Accept);
-    free(header.AcceptLanguage);
+    return header;
 }
 
 StartLine parse_startline(char *headers, size_t headersLen) {
@@ -76,7 +78,6 @@ StartLine parse_startline(char *headers, size_t headersLen) {
     set_startline_request_target(&startLine, startLineStr);
     set_startline_version(&startLine, startLineStr);
 
-    free(startLineStr);
     return startLine;
 }
 
@@ -123,7 +124,7 @@ void set_startline_request_target(StartLine *startLine, char *startLineStr) {
         endOfTarget++;
     }
     int len = endOfTarget - startOfTarget;
-    char requestTarget[len + 1];
+    char *requestTarget = malloc(len + 1);
     for (int i = 0; i < len; ++i) {
         requestTarget[i] = startLineStr[startOfTarget + i];
     }
@@ -142,7 +143,7 @@ void set_startline_version(StartLine *startLine, char *startLineStr) {
     }
     // Get rid of empty space at the begginning
     end_ptr++;
-    startLine->RequestTarget = end_ptr;
+    startLine->Version = end_ptr;
 }
 
 char *get_header_entry(char *fullHeader, char *header) {
