@@ -25,11 +25,13 @@ void handle_http(int clientFD) {
         memcpy(headers + headersLen, temp, chunk);
         headersLen += chunk;
 
-        if (MAX_HEADER_LENGTH < headersLen) {
+        if (headersLen > MAX_HEADER_LENGTH) {
             perror("The request is too big. Need to reject it\n");
         }
     }
-
+    headersLen++;
+    headers = realloc(headers, headersLen);
+    headers[headersLen - 1] = '\0';
     printf("client said: %s\n", headers);
     parse_header(headers, headersLen);
     free(headers);
@@ -51,9 +53,18 @@ bool found_header_end(char *headers, size_t headersLen) {
 void parse_header(char *headers, size_t headersLen) {
     Header header;
     header.StartLine = parse_startline(headers, headersLen);
-    header.Host = parse_host(headers);
+    header.Host = get_header_entry(headers, "Host");
     printf("Host parsed: %s\n", header.Host);
+    header.UserAgent = get_header_entry(headers, "User-Agent");
+    printf("UserAgent parsed: %s\n", header.UserAgent);
+    header.Accept = get_header_entry(headers, "Accept");
+    printf("Accept parsed: %s\n", header.Accept);
+    header.AcceptLanguage = get_header_entry(headers, "Accept-Language");
+    printf("Accept-Language parsed: %s\n", header.AcceptLanguage);
     free(header.Host);
+    free(header.UserAgent);
+    free(header.Accept);
+    free(header.AcceptLanguage);
 }
 
 StartLine parse_startline(char *headers, size_t headersLen) {
@@ -78,9 +89,9 @@ char *parse_startline_str(char *headers, size_t headersLen) {
         }
         startLineLen++;
     }
-    char *startLineStr = (char *)malloc(startLineLen + 1);
-    strcpy(startLineStr, headers);
-    startLineStr[startLineLen + 1] = '\0';
+    char *startLineStr = malloc(startLineLen + 1);
+    strncpy(startLineStr, headers, startLineLen);
+    startLineStr[startLineLen] = '\0';
     return startLineStr;
 }
 
@@ -134,24 +145,36 @@ void set_startline_version(StartLine *startLine, char *startLineStr) {
     startLine->RequestTarget = end_ptr;
 }
 
-char *parse_host(char *headers) {
-    char hostHeader[] = "\r\nHost:";
-    char *resultStart;
+char *get_header_entry(char *fullHeader, char *header) {
+    // requestHeader will include "\r\n" before header and ":\0" after
+    char requestHeader[strlen(header) + 4];
+    memset(requestHeader, 0, sizeof(requestHeader));
+    strcat(requestHeader, "\r\n");
+    strcat(requestHeader, header);
+    strcat(requestHeader, ":\0");
 
-    resultStart = strstr(headers, hostHeader);
+    char *resultStart = strstr(fullHeader, requestHeader);
+    // If the header is not present then just return an empty result
     if (resultStart == NULL) {
-        perror("parsing host value");
+        char *emptyResult = malloc(1);
+        emptyResult[0] = '\0';
+        return emptyResult;
     }
-
-    char endOfLine[] = "\r\n";
-    char *resultEnd;
-    // Move the point 8 chars forward
-    resultStart += 8;
-    resultEnd = strstr(resultStart, endOfLine);
-
+    // Move the resultStart after Header so that we can just get the result of the header.
+    while (*resultStart != ' ') {
+        resultStart++;
+    }
+    // Get rid of empty space at the begginning
+    resultStart++;
+    char *endOfLine = "\r\n";
+    char *resultEnd = strstr(resultStart, endOfLine);
+    if (resultStart == NULL) {
+        printf("There was a error parsing the value for header. Header: %s\n", header);
+        perror("Header parsing error");
+    }
     size_t length = resultEnd - resultStart + 1;
-    char *result = (char *)malloc(length);
+    char *result = malloc(length);
     strncpy(result, resultStart, length - 1);
-    result[length] = '\0';
+    result[length - 1] = '\0';
     return result;
 }

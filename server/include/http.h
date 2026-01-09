@@ -19,6 +19,7 @@ typedef struct {
     char *Host;
     char *UserAgent;
     char *Accept;
+    char *AcceptLanguage;
 } Header;
 
 void handle_http(int clientFD);
@@ -31,5 +32,6 @@ void set_startline_request_target(StartLine *startLine, char *startLineStr);
 void set_startline_version(StartLine *startLine, char *startLineStr);
 
 char *parse_host(char *headers);
+char *get_header_entry(char *fullHeader, char *header);
 
 #endif

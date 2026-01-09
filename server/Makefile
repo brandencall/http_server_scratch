@@ -1,4 +1,4 @@
-CC = gcc
+CC = gcc -fsanitize=address
 CFLAGS = -g -Iinclude
 
 SRC_DIR = src
