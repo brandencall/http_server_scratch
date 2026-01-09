@@ -32,6 +32,7 @@ void handle_http(int clientFD) {
 
     printf("client said: %s\n", headers);
     parse_header(headers, headersLen);
+    free(headers);
 }
 
 bool found_header_end(char *headers, size_t headersLen) {
@@ -48,11 +49,13 @@ bool found_header_end(char *headers, size_t headersLen) {
 }
 
 void parse_header(char *headers, size_t headersLen) {
-    StartLine startLine = parse_startline(headers, headersLen);
-    printf("startLine method parsed: %d\n", startLine.Method);
+    Header header;
+    header.StartLine = parse_startline(headers, headersLen);
+    header.Host = parse_host(headers);
+    printf("Host parsed: %s\n", header.Host);
+    free(header.Host);
 }
 
-// TODO: Implement parsing the HTTP version
 StartLine parse_startline(char *headers, size_t headersLen) {
     StartLine startLine;
     char *startLineStr = parse_startline_str(headers, headersLen);
@@ -60,6 +63,7 @@ StartLine parse_startline(char *headers, size_t headersLen) {
 
     set_starline_method(&startLine, startLineStr);
     set_startline_request_target(&startLine, startLineStr);
+    set_startline_version(&startLine, startLineStr);
 
     free(startLineStr);
     return startLine;
@@ -98,9 +102,9 @@ void set_starline_method(StartLine *startLine, char *startLineStr) {
     }
 }
 
-void set_startline_request_target(StartLine *startLine, char *startLineStr){
+void set_startline_request_target(StartLine *startLine, char *startLineStr) {
     int startOfTarget = 0;
-    while (startLineStr[startOfTarget] != '/'){
+    while (startLineStr[startOfTarget] != '/') {
         startOfTarget++;
     }
     int endOfTarget = startOfTarget;
@@ -115,4 +119,39 @@ void set_startline_request_target(StartLine *startLine, char *startLineStr){
     requestTarget[len] = '\0';
 
     startLine->RequestTarget = requestTarget;
+}
+
+void set_startline_version(StartLine *startLine, char *startLineStr) {
+    size_t len = strlen(startLineStr);
+    // -1 becuase don't want to point to '\0'
+    char *end_ptr = startLineStr + len - 1;
+
+    while (*end_ptr != ' ') {
+        end_ptr--;
+    }
+    // Get rid of empty space at the begginning
+    end_ptr++;
+    startLine->RequestTarget = end_ptr;
+}
+
+char *parse_host(char *headers) {
+    char hostHeader[] = "\r\nHost:";
+    char *resultStart;
+
+    resultStart = strstr(headers, hostHeader);
+    if (resultStart == NULL) {
+        perror("parsing host value");
+    }
+
+    char endOfLine[] = "\r\n";
+    char *resultEnd;
+    // Move the point 8 chars forward
+    resultStart += 8;
+    resultEnd = strstr(resultStart, endOfLine);
+
+    size_t length = resultEnd - resultStart + 1;
+    char *result = (char *)malloc(length);
+    strncpy(result, resultStart, length - 1);
+    result[length] = '\0';
+    return result;
 }
