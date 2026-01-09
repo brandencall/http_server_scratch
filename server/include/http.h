@@ -18,5 +18,6 @@ void parse_header(char *headers, size_t headersLen);
 StartLine parse_startline(char *headers, size_t headersLen);
 char *parse_startline_str(char *headers, size_t headersLen);
 void set_starline_method(StartLine *startLine, char *startLineStr);
+void set_startline_request_target(StartLine *startLine, char *startLineStr);
 
 #endif

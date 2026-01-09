@@ -52,14 +52,14 @@ void parse_header(char *headers, size_t headersLen) {
     printf("startLine method parsed: %d\n", startLine.Method);
 }
 
-// TODO: Implement parsing of the Request Target and the HTTP version
+// TODO: Implement parsing the HTTP version
 StartLine parse_startline(char *headers, size_t headersLen) {
     StartLine startLine;
     char *startLineStr = parse_startline_str(headers, headersLen);
-
     printf("Start Line: %s\n", startLineStr);
 
     set_starline_method(&startLine, startLineStr);
+    set_startline_request_target(&startLine, startLineStr);
 
     free(startLineStr);
     return startLine;
@@ -96,4 +96,23 @@ void set_starline_method(StartLine *startLine, char *startLineStr) {
     } else if (strncmp(method, "DELETE", methodLen) == 0) {
         startLine->Method = DELETE;
     }
+}
+
+void set_startline_request_target(StartLine *startLine, char *startLineStr){
+    int startOfTarget = 0;
+    while (startLineStr[startOfTarget] != '/'){
+        startOfTarget++;
+    }
+    int endOfTarget = startOfTarget;
+    while (startLineStr[endOfTarget] != ' ') {
+        endOfTarget++;
+    }
+    int len = endOfTarget - startOfTarget;
+    char requestTarget[len + 1];
+    for (int i = 0; i < len; ++i) {
+        requestTarget[i] = startLineStr[startOfTarget + i];
+    }
+    requestTarget[len] = '\0';
+
+    startLine->RequestTarget = requestTarget;
 }
