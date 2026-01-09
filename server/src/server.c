@@ -1,10 +1,10 @@
+#include "http.h"
 #include "tcp.h"
 #include <netinet/in.h>
 #include <stdio.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
-#include "http.h"
 
 int main() {
     printf("Hello from server\n");
