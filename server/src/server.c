@@ -4,8 +4,9 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-char *test() {
-    return "Hi from testing";
+GetResponse test() {
+    GetResponse response = { OK, "Is this test working" };
+    return response;
 }
 
 int main() {

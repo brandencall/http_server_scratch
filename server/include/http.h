@@ -1,9 +1,9 @@
 #ifndef HTTP_H
 #define HTTP_H
 
+#include "tcp.h"
 #include <stdbool.h>
 #include <stddef.h>
-#include "tcp.h"
 
 typedef struct {
     char *Header;
@@ -11,6 +11,7 @@ typedef struct {
 } HeaderString;
 
 typedef enum { GET, POST, PUT, DELETE } Method;
+typedef enum { OK = 200, NOT_FOUND = 404 } StatusCode;
 
 typedef struct {
     char *Header;
@@ -29,13 +30,25 @@ typedef struct {
 } HttpRequest;
 
 typedef struct {
+    StatusCode StatusCode;
+    char *Version;
+    char *ContentType;
+    int *ContentLength;
+    char *ContentBody;
+} HttpResponse;
+
+typedef struct {
+    StatusCode StatusCode;
+    char *ContentBody;
+} GetResponse;
+
+typedef struct {
     char *RequestTarget;
-    char *(*callback)();
+    GetResponse (*callback)();
 } GetHandler;
 
-
 void start_http(int port);
-void register_get(char *requestTarget, char *(*callback)());
+void register_get(char *requestTarget, GetResponse (*callback)());
 void handle_http_request(int clientFD);
 
 void handle_get_request(HttpRequest *httpRequest, int clientFD);

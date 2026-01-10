@@ -31,7 +31,7 @@ void start_http(int port) {
     close(socketFD);
 }
 
-void register_get(char *requestTarget, char *(*callback)()) {
+void register_get(char *requestTarget, GetResponse (*callback)()) {
     GetHandler handler = {requestTarget, callback};
     getHandlers[0] = handler;
 }
@@ -49,20 +49,20 @@ void handle_http_request(int clientFD) {
 
 // THIS IS JUST A TOY A FUNCTION
 void handle_get_request(HttpRequest *httpRequest, int clientFD) {
-    char *msg = getHandlers[0].callback();
-    int length = strlen(msg);
+    GetResponse msg = getHandlers[0].callback();
+    int length = strlen(msg.ContentBody);
 
     // setting up msg length as 3 is WRONG!
     char msgLen[3];
     snprintf(msgLen, sizeof(msgLen), "%d", length);
     char returnHeader[] =
         "HTTP/1.1 200 OK\r\nDate: Fri, 09 Jan 2026 02:45:00 GMT\r\nContent-Type: text/plain\r\nContent-Length: ";
-    char returnMsg[sizeof(returnHeader) + sizeof(msgLen) + length + 4];
+    char returnMsg[sizeof(msgLen) + sizeof(returnHeader) + length + 4];
     memset(returnMsg, 0, sizeof(returnMsg));
     strcat(returnMsg, returnHeader);
     strcat(returnMsg, msgLen);
     strcat(returnMsg, "\r\n\r\n");
-    strcat(returnMsg, msg);
+    strcat(returnMsg, msg.ContentBody);
     write_to_client(returnMsg, sizeof(returnMsg), clientFD);
 }
 
@@ -225,4 +225,3 @@ void print_header(HttpRequest *httpRequest) {
     printf("httpRequest.UserAgent: %s\n", httpRequest->UserAgent);
     printf("httpRequest.Accept: %s\n", httpRequest->Accept);
 }
-
