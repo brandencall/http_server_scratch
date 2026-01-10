@@ -52,12 +52,15 @@ void handle_get_request(HttpRequest *httpRequest, int clientFD) {
     GetResponse msg = getHandlers[0].callback();
     int length = strlen(msg.ContentBody);
 
-    // setting up msg length as 3 is WRONG!
-    char msgLen[3];
+    // Over allocate for the size of msg
+    char msgLen[20];
     snprintf(msgLen, sizeof(msgLen), "%d", length);
+    printf("msgLen: %s, sizeof(msgLen): %lu\n", msgLen, sizeof(msgLen));
+
+    // TODO: Need to change this out to handle the actual http response 
     char returnHeader[] =
         "HTTP/1.1 200 OK\r\nDate: Fri, 09 Jan 2026 02:45:00 GMT\r\nContent-Type: text/plain\r\nContent-Length: ";
-    char returnMsg[sizeof(msgLen) + sizeof(returnHeader) + length + 4];
+    char returnMsg[sizeof(returnHeader) + strlen(msgLen) + length + 4];
     memset(returnMsg, 0, sizeof(returnMsg));
     strcat(returnMsg, returnHeader);
     strcat(returnMsg, msgLen);

@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 GetResponse test() {
-    GetResponse response = { OK, "Is this test working" };
+    GetResponse response = { OK, "Testing 123" };
     return response;
 }
 
