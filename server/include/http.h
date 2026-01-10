@@ -13,20 +13,20 @@ typedef struct {
 typedef enum { GET, POST, PUT, DELETE } Method;
 
 typedef struct {
+    char *Header;
+    size_t HeaderLength;
+} HttpRequestString;
+
+typedef struct {
+    // Method, RequestTarget, Version are the Start Line of the HTTP Request
     Method Method;
     char *RequestTarget;
     char *Version;
-} StartLine;
-
-// Need to fill out the rest of the request headers
-// ref: https://developer.mozilla.org/en-US/docs/Glossary/Request_header
-typedef struct {
-    StartLine StartLine;
     char *Host;
     char *UserAgent;
     char *Accept;
     char *AcceptLanguage;
-} Header;
+} HttpRequest;
 
 typedef struct {
     char *RequestTarget;
@@ -36,20 +36,23 @@ typedef struct {
 
 void start_http(int port);
 void register_get(char *requestTarget, char *(*callback)());
+void handle_http_request(int clientFD);
 
-void handle_http(int clientFD);
-HeaderString read_header(int clientFD);
-Header parse_header(HeaderString *headerString);
-void handle_get_request(Header *header, int clientFD);
-bool found_header_end(char *headers, size_t headersLen);
-StartLine parse_startline(HeaderString *headerString);
-char *parse_startline_str(HeaderString *headerString);
-void set_starline_method(StartLine *startLine, char *startLineStr);
-void set_startline_request_target(StartLine *startLine, char *startLineStr);
-void set_startline_version(StartLine *startLine, char *startLineStr);
-void print_header(Header *header);
+void handle_get_request(HttpRequest *httpRequest, int clientFD);
 
-char *parse_host(char *headers);
-char *get_header_entry(HeaderString *headerString, char *header);
+HttpRequestString get_http_request_string(int clientFD);
+bool found_end_http_request(char *httpRequest, size_t requestLength);
+
+HttpRequest parse_http_request(HttpRequestString *httpRequestString);
+
+void parse_startline(HttpRequestString *httpRequestString, HttpRequest *request);
+char *parse_startline_str(HttpRequestString *httpRequestString);
+void set_starline_method(HttpRequest *httpRequest, char *startLineStr);
+void set_startline_request_target(HttpRequest *httpRequest, char *startLineStr);
+void set_startline_version(HttpRequest *httpRequest, char *startLineStr);
+
+char *get_http_request_entry(HttpRequestString *httpRequestString, char *entry);
+
+void print_header(HttpRequest *httpRequest);
 
 #endif

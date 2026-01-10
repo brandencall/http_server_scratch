@@ -12,6 +12,7 @@
 // Using 6 because DELETE is the largest expected method
 #define MAX_METHOD_LENTH 6
 
+// TODO: THIS IS NOT THE WAY TO HANDLE THE GET REGISTERED HANDLERS
 GetHandler getHandlers[1];
 
 void start_http(int port) {
@@ -21,7 +22,7 @@ void start_http(int port) {
 
     while (1) {
         int clientFD = wait_for_client(socketFD);
-        handle_http(clientFD);
+        handle_http_request(clientFD);
 
         close(clientFD);
         printf("closed client connection\n");
@@ -35,23 +36,42 @@ void register_get(char *requestTarget, char *(*callback)()) {
     getHandlers[0] = handler;
 }
 
-void handle_http(int clientFD) {
-    HeaderString headerString = read_header(clientFD);
-    Header header = parse_header(&headerString);
+void handle_http_request(int clientFD) {
+    HttpRequestString requestString = get_http_request_string(clientFD);
+    HttpRequest request = parse_http_request(&requestString);
     // print_header(&header);
     // Toy function for handling GET request
-    if (header.StartLine.Method == GET) {
-        handle_get_request(&header, clientFD);
+    if (request.Method == GET) {
+        handle_get_request(&request, clientFD);
     }
-    free(headerString.Header);
+    free(requestString.Header);
 }
 
-HeaderString read_header(int clientFD) {
+// THIS IS JUST A TOY A FUNCTION
+void handle_get_request(HttpRequest *httpRequest, int clientFD) {
+    char *msg = getHandlers[0].callback();
+    int length = strlen(msg);
+
+    // setting up msg length as 3 is WRONG!
+    char msgLen[3];
+    snprintf(msgLen, sizeof(msgLen), "%d", length);
+    char returnHeader[] =
+        "HTTP/1.1 200 OK\r\nDate: Fri, 09 Jan 2026 02:45:00 GMT\r\nContent-Type: text/plain\r\nContent-Length: ";
+    char returnMsg[sizeof(returnHeader) + sizeof(msgLen) + length + 4];
+    memset(returnMsg, 0, sizeof(returnMsg));
+    strcat(returnMsg, returnHeader);
+    strcat(returnMsg, msgLen);
+    strcat(returnMsg, "\r\n\r\n");
+    strcat(returnMsg, msg);
+    write_to_client(returnMsg, sizeof(returnMsg), clientFD);
+}
+
+HttpRequestString get_http_request_string(int clientFD) {
     char temp[CHUNK_SIZE];
     char *headers = NULL;
     size_t headersLen = 0;
 
-    while (!found_header_end(headers, headersLen)) {
+    while (!found_end_http_request(headers, headersLen)) {
         ssize_t chunk = recv(clientFD, temp, sizeof(temp), 0);
         if (chunk <= 0) {
             perror("There was an error reading from the chunk\n");
@@ -67,104 +87,73 @@ HeaderString read_header(int clientFD) {
     headersLen++;
     headers = realloc(headers, headersLen);
     headers[headersLen - 1] = '\0';
-    HeaderString result = {headers, headersLen};
+    HttpRequestString result = {headers, headersLen};
     return result;
 }
 
-void print_header(Header *header) {
-    printf("StartLine.Method: %d\n", header->StartLine.Method);
-    printf("StartLine.RequestTarget: %s\n", header->StartLine.RequestTarget);
-    printf("StartLine.Version: %s\n", header->StartLine.Version);
-    printf("header.Host: %s\n", header->Host);
-    printf("header.UserAgent: %s\n", header->UserAgent);
-    printf("header.Accept: %s\n", header->Accept);
-}
-
-Header parse_header(HeaderString *headerString) {
-    Header header;
-    header.StartLine = parse_startline(headerString);
-    header.Host = get_header_entry(headerString, "Host");
-    header.UserAgent = get_header_entry(headerString, "User-Agent");
-    header.Accept = get_header_entry(headerString, "Accept");
-    header.AcceptLanguage = get_header_entry(headerString, "Accept-Language");
-    return header;
-}
-
-// THIS IS JUST A TOY A FUNCTION
-void handle_get_request(Header *header, int clientFD) {
-    char *msg = getHandlers[0].callback();
-    printf("msg in get handler: %s\n", msg);
-    int length = strlen(msg);
-    // setting up msg length as 3 is WRONG!
-    char msgLen[3];
-    snprintf(msgLen, sizeof(msgLen), "%d", length);
-    printf("msgLen as a string: %s\n", msgLen);
-    printf("sizeof msgLen: %lu\n", sizeof(msgLen));
-    char returnHeader[] =
-        "HTTP/1.1 200 OK\r\nDate: Fri, 09 Jan 2026 02:45:00 GMT\r\nContent-Type: text/plain\r\nContent-Length: ";
-    char returnMsg[sizeof(returnHeader) + sizeof(msgLen) + length + 4];
-    strcat(returnMsg, returnHeader);
-    strcat(returnMsg, msgLen);
-    strcat(returnMsg, "\r\n\r\n");
-    strcat(returnMsg, msg);
-    write_to_client(returnMsg, sizeof(returnMsg), clientFD);
-}
-
-bool found_header_end(char *headers, size_t headersLen) {
-    if (headersLen < 4) {
+bool found_end_http_request(char *httpRequest, size_t requestLength) {
+    if (requestLength < 4) {
         return false;
     }
-    // Check if the last 4 characters in headers is \r\n\r\n
+    // Check if the last 4 characters in httpRequest is \r\n\r\n
     // This signifies the end of the header
-    if (headers[headersLen - 1] == '\n' && headers[headersLen - 3] == '\n' && headers[headersLen - 2] == '\r' &&
-        headers[headersLen - 4] == '\r') {
+    if (httpRequest[requestLength - 1] == '\n' && httpRequest[requestLength - 3] == '\n' &&
+        httpRequest[requestLength - 2] == '\r' && httpRequest[requestLength - 4] == '\r') {
         return true;
     }
     return false;
 }
 
-StartLine parse_startline(HeaderString *headerString) {
-    StartLine startLine;
-    char *startLineStr = parse_startline_str(headerString);
-    set_starline_method(&startLine, startLineStr);
-    set_startline_request_target(&startLine, startLineStr);
-    set_startline_version(&startLine, startLineStr);
-    return startLine;
+HttpRequest parse_http_request(HttpRequestString *httpRequestString) {
+    HttpRequest request;
+    parse_startline(httpRequestString, &request);
+    request.Host = get_http_request_entry(httpRequestString, "Host");
+    request.UserAgent = get_http_request_entry(httpRequestString, "User-Agent");
+    request.Accept = get_http_request_entry(httpRequestString, "Accept");
+    request.AcceptLanguage = get_http_request_entry(httpRequestString, "Accept-Language");
+    return request;
 }
 
-char *parse_startline_str(HeaderString *headerString) {
+void parse_startline(HttpRequestString *httpRequestString, HttpRequest *request) {
+    char *startLineStr = parse_startline_str(httpRequestString);
+    set_starline_method(request, startLineStr);
+    set_startline_request_target(request, startLineStr);
+    set_startline_version(request, startLineStr);
+}
+
+char *parse_startline_str(HttpRequestString *httpRequestString) {
     int startLineLen = 0;
     // Find the end of the startLine
-    while (startLineLen < headerString->HeaderLength && startLineLen + 1 < headerString->HeaderLength) {
-        if (headerString->Header[startLineLen] == '\r' && headerString->Header[startLineLen + 1] == '\n') {
+    while (startLineLen < httpRequestString->HeaderLength && startLineLen + 1 < httpRequestString->HeaderLength) {
+        if (httpRequestString->Header[startLineLen] == '\r' && httpRequestString->Header[startLineLen + 1] == '\n') {
             break;
         }
         startLineLen++;
     }
     char *startLineStr = malloc(startLineLen + 1);
-    strncpy(startLineStr, headerString->Header, startLineLen);
+    strncpy(startLineStr, httpRequestString->Header, startLineLen);
     startLineStr[startLineLen] = '\0';
     return startLineStr;
 }
 
-void set_starline_method(StartLine *startLine, char *startLineStr) {
+void set_starline_method(HttpRequest *httpRequest, char *startLineStr) {
     char method[MAX_METHOD_LENTH];
     int methodLen = 0;
     for (int methodLen = 0; methodLen < MAX_METHOD_LENTH && startLineStr[methodLen] != ' '; ++methodLen) {
         method[methodLen] = startLineStr[methodLen];
     }
     if (strncmp(method, "GET", methodLen) == 0) {
-        startLine->Method = GET;
+        httpRequest->Method = GET;
     } else if (strncmp(method, "POST", methodLen) == 0) {
-        startLine->Method = POST;
+        httpRequest->Method = POST;
     } else if (strncmp(method, "PUT", methodLen) == 0) {
-        startLine->Method = PUT;
+        httpRequest->Method = PUT;
     } else if (strncmp(method, "DELETE", methodLen) == 0) {
-        startLine->Method = DELETE;
+        httpRequest->Method = DELETE;
     }
 }
 
-void set_startline_request_target(StartLine *startLine, char *startLineStr) {
+void set_startline_request_target(HttpRequest *httpRequest, char *startLineStr) {
     int startOfTarget = 0;
     while (startLineStr[startOfTarget] != '/') {
         startOfTarget++;
@@ -179,10 +168,10 @@ void set_startline_request_target(StartLine *startLine, char *startLineStr) {
         requestTarget[i] = startLineStr[startOfTarget + i];
     }
     requestTarget[len] = '\0';
-    startLine->RequestTarget = requestTarget;
+    httpRequest->RequestTarget = requestTarget;
 }
 
-void set_startline_version(StartLine *startLine, char *startLineStr) {
+void set_startline_version(HttpRequest *httpRequest, char *startLineStr) {
     size_t len = strlen(startLineStr);
     // -1 becuase don't want to point to '\0'
     char *end_ptr = startLineStr + len - 1;
@@ -191,18 +180,18 @@ void set_startline_version(StartLine *startLine, char *startLineStr) {
     }
     // Get rid of empty space at the begginning
     end_ptr++;
-    startLine->Version = end_ptr;
+    httpRequest->Version = end_ptr;
 }
 
-char *get_header_entry(HeaderString *headerString, char *header) {
+char *get_http_request_entry(HttpRequestString *httpRequestString, char *entry) {
     // requestHeader will include "\r\n" before header and ":\0" after
-    char requestHeader[strlen(header) + 4];
+    char requestHeader[strlen(entry) + 4];
     memset(requestHeader, 0, sizeof(requestHeader));
     strcat(requestHeader, "\r\n");
-    strcat(requestHeader, header);
+    strcat(requestHeader, entry);
     strcat(requestHeader, ":\0");
 
-    char *resultStart = strstr(headerString->Header, requestHeader);
+    char *resultStart = strstr(httpRequestString->Header, requestHeader);
     // If the header is not present then just return an empty result
     if (resultStart == NULL) {
         char *emptyResult = malloc(1);
@@ -218,7 +207,7 @@ char *get_header_entry(HeaderString *headerString, char *header) {
     char *endOfLine = "\r\n";
     char *resultEnd = strstr(resultStart, endOfLine);
     if (resultStart == NULL) {
-        printf("There was a error parsing the value for header. Header: %s\n", header);
+        printf("There was a error parsing the value for header. Header: %s\n", entry);
         perror("Header parsing error");
     }
     size_t length = resultEnd - resultStart + 1;
@@ -227,3 +216,13 @@ char *get_header_entry(HeaderString *headerString, char *header) {
     result[length - 1] = '\0';
     return result;
 }
+
+void print_header(HttpRequest *httpRequest) {
+    printf("httpRequest.Method: %d\n", httpRequest->Method);
+    printf("httpRequest.RequestTarget: %s\n", httpRequest->RequestTarget);
+    printf("httpRequest.Version: %s\n", httpRequest->Version);
+    printf("httpRequest.Host: %s\n", httpRequest->Host);
+    printf("httpRequest.UserAgent: %s\n", httpRequest->UserAgent);
+    printf("httpRequest.Accept: %s\n", httpRequest->Accept);
+}
+
