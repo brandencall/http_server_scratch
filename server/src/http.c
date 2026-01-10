@@ -12,6 +12,22 @@
 // Using 6 becuase DELETE is the largest expected method
 #define MAX_METHOD_LENTH 6
 
+void start_http(int port){
+    printf("Hello from server\n");
+
+    int socketFD = socket_init(port);
+
+    while (1) {
+        int clientFD = wait_for_client(socketFD);
+        handle_http(clientFD);
+
+        close(clientFD);
+        printf("closed client connection\n");
+    }
+
+    close(socketFD);
+}
+
 void handle_http(int clientFD) {
     HeaderString headerString = read_header(clientFD);
     Header header = parse_header(&headerString);

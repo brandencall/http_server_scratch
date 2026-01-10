@@ -28,6 +28,8 @@ typedef struct {
     char *AcceptLanguage;
 } Header;
 
+void start_http(int port);
+
 void handle_http(int clientFD);
 HeaderString read_header(int clientFD);
 Header parse_header(HeaderString *headerString);
