@@ -28,7 +28,14 @@ typedef struct {
     char *AcceptLanguage;
 } Header;
 
+typedef struct {
+    char *RequestTarget;
+    char *(*callback)();
+} GetHandler;
+
+
 void start_http(int port);
+void register_get(char *requestTarget, char *(*callback)());
 
 void handle_http(int clientFD);
 HeaderString read_header(int clientFD);

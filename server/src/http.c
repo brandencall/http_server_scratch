@@ -9,10 +9,12 @@
 
 #define CHUNK_SIZE 4096
 #define MAX_HEADER_LENGTH 655353
-// Using 6 becuase DELETE is the largest expected method
+// Using 6 because DELETE is the largest expected method
 #define MAX_METHOD_LENTH 6
 
-void start_http(int port){
+GetHandler getHandlers[1];
+
+void start_http(int port) {
     printf("Hello from server\n");
 
     int socketFD = socket_init(port);
@@ -28,10 +30,15 @@ void start_http(int port){
     close(socketFD);
 }
 
+void register_get(char *requestTarget, char *(*callback)()) {
+    GetHandler handler = {requestTarget, callback};
+    getHandlers[0] = handler;
+}
+
 void handle_http(int clientFD) {
     HeaderString headerString = read_header(clientFD);
     Header header = parse_header(&headerString);
-    print_header(&header);
+    // print_header(&header);
     // Toy function for handling GET request
     if (header.StartLine.Method == GET) {
         handle_get_request(&header, clientFD);
@@ -60,7 +67,7 @@ HeaderString read_header(int clientFD) {
     headersLen++;
     headers = realloc(headers, headersLen);
     headers[headersLen - 1] = '\0';
-    HeaderString result = { headers, headersLen };
+    HeaderString result = {headers, headersLen};
     return result;
 }
 
@@ -83,8 +90,23 @@ Header parse_header(HeaderString *headerString) {
     return header;
 }
 
-void handle_get_request(Header *header, int clientFD){
-    char returnMsg[] = "HTTP/1.1 200 OK\r\nDate: Fri, 09 Jan 2026 02:45:00 GMT\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello, World!";
+// THIS IS JUST A TOY A FUNCTION
+void handle_get_request(Header *header, int clientFD) {
+    char *msg = getHandlers[0].callback();
+    printf("msg in get handler: %s\n", msg);
+    int length = strlen(msg);
+    // setting up msg length as 3 is WRONG!
+    char msgLen[3];
+    snprintf(msgLen, sizeof(msgLen), "%d", length);
+    printf("msgLen as a string: %s\n", msgLen);
+    printf("sizeof msgLen: %lu\n", sizeof(msgLen));
+    char returnHeader[] =
+        "HTTP/1.1 200 OK\r\nDate: Fri, 09 Jan 2026 02:45:00 GMT\r\nContent-Type: text/plain\r\nContent-Length: ";
+    char returnMsg[sizeof(returnHeader) + sizeof(msgLen) + length + 4];
+    strcat(returnMsg, returnHeader);
+    strcat(returnMsg, msgLen);
+    strcat(returnMsg, "\r\n\r\n");
+    strcat(returnMsg, msg);
     write_to_client(returnMsg, sizeof(returnMsg), clientFD);
 }
 
