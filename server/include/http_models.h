@@ -29,9 +29,10 @@ typedef struct {
     char *ContentBody;
 } GetResponse;
 
-typedef struct {
+typedef struct GetHandler {
     char *RequestTarget;
     GetResponse (*callback)();
+    struct GetHandler *Next;
 } GetHandler;
 
 #endif

@@ -1,4 +1,5 @@
 #include "http.h"
+#include "http_models.h"
 #include "tcp.h"
 #include <stddef.h>
 #include <stdio.h>
@@ -12,8 +13,7 @@
 // Using 6 because DELETE is the largest expected method
 #define MAX_METHOD_LENTH 6
 
-// TODO: THIS IS NOT THE WAY TO HANDLE THE GET REGISTERED HANDLERS
-GetHandler getHandlers[1];
+GetHandler *head = NULL;
 
 void start_http(int port) {
     printf("Hello from server\n");
@@ -32,24 +32,45 @@ void start_http(int port) {
 }
 
 void register_get(char *requestTarget, GetResponse (*callback)()) {
-    GetHandler handler = {requestTarget, callback};
-    getHandlers[0] = handler;
+    GetHandler *newHandler = (GetHandler *)malloc(sizeof(GetHandler));
+    if (newHandler == NULL) {
+        perror("Error allocating mememory for new get handler");
+    }
+    newHandler->RequestTarget = requestTarget;
+    newHandler->callback = callback;
+    newHandler->Next = head;
+    head = newHandler;
 }
 
 void handle_http_request(int clientFD) {
     HttpRequestString requestString = get_http_request_string(clientFD);
     HttpRequest request = parse_http_request(&requestString);
-    // print_header(&header);
-    // Toy function for handling GET request
     if (request.Method == GET) {
         handle_get_request(&request, clientFD);
     }
     free(requestString.Header);
 }
 
+GetHandler *get_get_handler(HttpRequest *httpRequest) {
+    GetHandler *curr = head;
+    while (curr != NULL) {
+        // found the request target
+        if (strcmp(curr->RequestTarget, httpRequest->RequestTarget) == 0){
+            break;
+        }
+        curr = curr->Next;
+    }
+    return curr;
+}
+
 void handle_get_request(HttpRequest *httpRequest, int clientFD) {
     HttpResponse httpResponse;
-    GetResponse getResponse = getHandlers[0].callback();
+    GetHandler *getHandler = get_get_handler(httpRequest);
+    if (getHandler == NULL) {
+        printf("Request target not found. Request Target: %s\n", httpRequest->RequestTarget);
+        return;
+    }
+    GetResponse getResponse = getHandler->callback();
     httpResponse.Version = httpRequest->Version;
     httpResponse.ContentBody = getResponse.ContentBody;
     set_content_length_response(&httpResponse, getResponse.ContentBody);
