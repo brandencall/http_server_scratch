@@ -16,6 +16,8 @@ void register_get(char *requestTarget, GetResponse (*callback)());
 void handle_http_request(int clientFD);
 
 void handle_get_request(HttpRequest *httpRequest, int clientFD);
+GetHandler *get_handler(HttpRequest *httpRequest);
+
 void set_content_length_response(HttpResponse *httpResponse, char *contentBody);
 void set_status_response(HttpResponse *httpResponse, StatusCode *statusCode);
 void set_date_response(HttpResponse *httpResponse);

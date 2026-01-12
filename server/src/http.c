@@ -51,21 +51,10 @@ void handle_http_request(int clientFD) {
     free(requestString.Header);
 }
 
-GetHandler *get_get_handler(HttpRequest *httpRequest) {
-    GetHandler *curr = head;
-    while (curr != NULL) {
-        // found the request target
-        if (strcmp(curr->RequestTarget, httpRequest->RequestTarget) == 0){
-            break;
-        }
-        curr = curr->Next;
-    }
-    return curr;
-}
 
 void handle_get_request(HttpRequest *httpRequest, int clientFD) {
     HttpResponse httpResponse;
-    GetHandler *getHandler = get_get_handler(httpRequest);
+    GetHandler *getHandler = get_handler(httpRequest);
     if (getHandler == NULL) {
         printf("Request target not found. Request Target: %s\n", httpRequest->RequestTarget);
         return;
@@ -78,6 +67,18 @@ void handle_get_request(HttpRequest *httpRequest, int clientFD) {
     set_date_response(&httpResponse);
     set_content_type_response(&httpResponse);
     write_http_response(&httpResponse, clientFD);
+}
+
+GetHandler *get_handler(HttpRequest *httpRequest) {
+    GetHandler *curr = head;
+    while (curr != NULL) {
+        // found the request target
+        if (strcmp(curr->RequestTarget, httpRequest->RequestTarget) == 0){
+            break;
+        }
+        curr = curr->Next;
+    }
+    return curr;
 }
 
 void set_content_length_response(HttpResponse *httpResponse, char *contentBody) {
