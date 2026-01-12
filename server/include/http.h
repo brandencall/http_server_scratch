@@ -4,54 +4,22 @@
 #include "tcp.h"
 #include <stdbool.h>
 #include <stddef.h>
-
-typedef struct {
-    char *Header;
-    size_t HeaderLength;
-} HeaderString;
-
-typedef enum { GET, POST, PUT, DELETE } Method;
-typedef enum { OK = 200, NOT_FOUND = 404 } StatusCode;
+#include "http_models.h"
 
 typedef struct {
     char *Header;
     size_t HeaderLength;
 } HttpRequestString;
 
-typedef struct {
-    // Method, RequestTarget, Version are the Start Line of the HTTP Request
-    Method Method;
-    char *RequestTarget;
-    char *Version;
-    char *Host;
-    char *UserAgent;
-    char *Accept;
-    char *AcceptLanguage;
-} HttpRequest;
-
-typedef struct {
-    StatusCode StatusCode;
-    char *Version;
-    char *ContentType;
-    int *ContentLength;
-    char *ContentBody;
-} HttpResponse;
-
-typedef struct {
-    StatusCode StatusCode;
-    char *ContentBody;
-} GetResponse;
-
-typedef struct {
-    char *RequestTarget;
-    GetResponse (*callback)();
-} GetHandler;
-
 void start_http(int port);
 void register_get(char *requestTarget, GetResponse (*callback)());
 void handle_http_request(int clientFD);
 
 void handle_get_request(HttpRequest *httpRequest, int clientFD);
+void set_content_length_response(HttpResponse *httpResponse, char *contentBody);
+void set_status_response(HttpResponse *httpResponse, StatusCode *statusCode);
+void set_date_response(HttpResponse *httpResponse);
+void set_content_type_response(HttpResponse *httpResponse);
 
 HttpRequestString get_http_request_string(int clientFD);
 bool found_end_http_request(char *httpRequest, size_t requestLength);

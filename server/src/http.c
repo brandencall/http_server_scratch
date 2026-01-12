@@ -47,27 +47,34 @@ void handle_http_request(int clientFD) {
     free(requestString.Header);
 }
 
-// THIS IS JUST A TOY A FUNCTION
 void handle_get_request(HttpRequest *httpRequest, int clientFD) {
-    GetResponse msg = getHandlers[0].callback();
-    int length = strlen(msg.ContentBody);
-
-    // Over allocate for the size of msg
-    char msgLen[20];
-    snprintf(msgLen, sizeof(msgLen), "%d", length);
-    printf("msgLen: %s, sizeof(msgLen): %lu\n", msgLen, sizeof(msgLen));
-
-    // TODO: Need to change this out to handle the actual http response 
-    char returnHeader[] =
-        "HTTP/1.1 200 OK\r\nDate: Fri, 09 Jan 2026 02:45:00 GMT\r\nContent-Type: text/plain\r\nContent-Length: ";
-    char returnMsg[sizeof(returnHeader) + strlen(msgLen) + length + 4];
-    memset(returnMsg, 0, sizeof(returnMsg));
-    strcat(returnMsg, returnHeader);
-    strcat(returnMsg, msgLen);
-    strcat(returnMsg, "\r\n\r\n");
-    strcat(returnMsg, msg.ContentBody);
-    write_to_client(returnMsg, sizeof(returnMsg), clientFD);
+    HttpResponse httpResponse;
+    GetResponse getResponse = getHandlers[0].callback();
+    httpResponse.Version = httpRequest->Version;
+    httpResponse.ContentBody = getResponse.ContentBody;
+    set_content_length_response(&httpResponse, getResponse.ContentBody);
+    set_status_response(&httpResponse, &getResponse.StatusCode);
+    set_date_response(&httpResponse);
+    set_content_type_response(&httpResponse);
+    write_http_response(&httpResponse, clientFD);
 }
+
+void set_content_length_response(HttpResponse *httpResponse, char *contentBody) {
+    size_t contentLength = strlen(contentBody);
+    snprintf(httpResponse->ContentLength, sizeof(httpResponse->ContentLength), "%zu", contentLength);
+}
+
+void set_status_response(HttpResponse *httpResponse, StatusCode *statusCode) {
+    if (*statusCode == OK) {
+        httpResponse->Status = "200 OK";
+    }
+}
+
+// TODO: Need to get the actual date and time and format it as below
+void set_date_response(HttpResponse *httpResponse) { httpResponse->Date = "Fri, 09 Jan 2026 02:45:00 GMT"; }
+
+// TODO: Need to have logic that sets the correct ContentType
+void set_content_type_response(HttpResponse *httpResponse) { httpResponse->ContentType = "text/plain"; }
 
 HttpRequestString get_http_request_string(int clientFD) {
     char temp[CHUNK_SIZE];
