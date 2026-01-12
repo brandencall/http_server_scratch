@@ -23,9 +23,9 @@ void set_startline_version(HttpRequest *httpRequest, char *startLineStr);
 
 char *get_http_request_entry(HttpRequestString *httpRequestString, char *entry);
 
-void set_content_length_response(HttpResponse *httpResponse, char *contentBody);
-void set_status_response(HttpResponse *httpResponse, StatusCode *statusCode);
-void set_date_response(HttpResponse *httpResponse);
-void set_content_type_response(HttpResponse *httpResponse);
+//void set_content_length_response(HttpResponse *httpResponse, char *contentBody);
+//void set_status_response(HttpResponse *httpResponse, StatusCode *statusCode);
+//void set_date_response(HttpResponse *httpResponse);
+//void set_content_type_response(HttpResponse *httpResponse);
 
 #endif

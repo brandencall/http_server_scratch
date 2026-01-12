@@ -55,16 +55,18 @@ void handle_http_request(int clientFD) {
 
 void handle_get_request(HttpRequest *httpRequest, int clientFD) {
     HttpResponse httpResponse;
+    httpResponse.Version = httpRequest->Version;
     GetHandler *getHandler = get_handler(httpRequest);
     if (getHandler == NULL) {
         printf("Request target not found. Request Target: %s\n", httpRequest->RequestTarget);
-        return;
+        set_status_response(&httpResponse, NOT_FOUND);
+        httpResponse.ContentBody = "";
+    } else {
+        GetResponse getResponse = getHandler->callback();
+        httpResponse.ContentBody = getResponse.ContentBody;
+        set_status_response(&httpResponse, getResponse.StatusCode);
     }
-    GetResponse getResponse = getHandler->callback();
-    httpResponse.Version = httpRequest->Version;
-    httpResponse.ContentBody = getResponse.ContentBody;
-    set_content_length_response(&httpResponse, getResponse.ContentBody);
-    set_status_response(&httpResponse, &getResponse.StatusCode);
+    set_content_length_response(&httpResponse);
     set_date_response(&httpResponse);
     set_content_type_response(&httpResponse);
     write_http_response(&httpResponse, clientFD);
@@ -82,14 +84,16 @@ GetHandler *get_handler(HttpRequest *httpRequest) {
     return curr;
 }
 
-void set_content_length_response(HttpResponse *httpResponse, char *contentBody) {
-    size_t contentLength = strlen(contentBody);
+void set_content_length_response(HttpResponse *httpResponse) {
+    size_t contentLength = strlen(httpResponse->ContentBody);
     snprintf(httpResponse->ContentLength, sizeof(httpResponse->ContentLength), "%zu", contentLength);
 }
 
-void set_status_response(HttpResponse *httpResponse, StatusCode *statusCode) {
-    if (*statusCode == OK) {
+void set_status_response(HttpResponse *httpResponse, StatusCode statusCode) {
+    if (statusCode == OK) {
         httpResponse->Status = "200 OK";
+    } else if (NOT_FOUND == statusCode) {
+        httpResponse->Status = "404 Not Found";
     }
 }
 
