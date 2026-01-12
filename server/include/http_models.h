@@ -13,6 +13,8 @@ typedef struct {
     char *UserAgent;
     char *Accept;
     char *AcceptLanguage;
+    char *ContentBody;
+    int ContentLength;
 } HttpRequest;
 
 typedef struct {
@@ -27,12 +29,18 @@ typedef struct {
 typedef struct {
     StatusCode StatusCode;
     char *ContentBody;
-} GetResponse;
+} Response;
 
 typedef struct GetHandler {
     char *RequestTarget;
-    GetResponse (*callback)();
+    Response (*callback)();
     struct GetHandler *Next;
 } GetHandler;
+
+typedef struct PostHandler{
+    char *RequestTarget;
+    Response (*callback)(char *contentBody);
+    struct PostHandler *Next;
+} PostHandler;
 
 #endif

@@ -14,7 +14,8 @@
 // Using 6 because DELETE is the largest expected method
 #define MAX_METHOD_LENTH 6
 
-GetHandler *head = NULL;
+GetHandler *getHead = NULL;
+PostHandler *postHead = NULL;
 
 void start_http(int port) {
     printf("Hello from server\n");
@@ -32,27 +33,41 @@ void start_http(int port) {
     close(socketFD);
 }
 
-void register_get(char *requestTarget, GetResponse (*callback)()) {
+// May be able to combine both of the get and post register methods
+void register_get(char *requestTarget, Response (*callback)()) {
     GetHandler *newHandler = (GetHandler *)malloc(sizeof(GetHandler));
     if (newHandler == NULL) {
         perror("Error allocating mememory for new get handler");
     }
     newHandler->RequestTarget = requestTarget;
     newHandler->callback = callback;
-    newHandler->Next = head;
-    head = newHandler;
+    newHandler->Next = getHead;
+    getHead = newHandler;
+}
+
+void register_post(char *requestTarget, Response (*callback)(char *)) {
+    PostHandler *newHandler = (PostHandler *)malloc(sizeof(PostHandler));
+    if (newHandler == NULL) {
+        perror("Error allocating mememory for new get handler");
+    }
+    newHandler->RequestTarget = requestTarget;
+    newHandler->callback = callback;
+    newHandler->Next = postHead;
+    postHead = newHandler;
 }
 
 void handle_http_request(int clientFD) {
-    //HttpRequestString requestString = get_http_request_string(clientFD);
     HttpRequest request = parse_http_request(clientFD);
     if (request.Method == GET) {
         handle_get_request(&request, clientFD);
+    } else if (request.Method == POST) {
+        printf("Post method recognized\n");
+        handle_post_request(&request, clientFD);
     }
-    //free(requestString.Header);
 }
 
 
+// Can probably combine the get and post request handlers
 void handle_get_request(HttpRequest *httpRequest, int clientFD) {
     HttpResponse httpResponse;
     httpResponse.Version = httpRequest->Version;
@@ -62,7 +77,7 @@ void handle_get_request(HttpRequest *httpRequest, int clientFD) {
         set_status_response(&httpResponse, NOT_FOUND);
         httpResponse.ContentBody = "";
     } else {
-        GetResponse getResponse = getHandler->callback();
+        Response getResponse = getHandler->callback();
         httpResponse.ContentBody = getResponse.ContentBody;
         set_status_response(&httpResponse, getResponse.StatusCode);
     }
@@ -72,8 +87,40 @@ void handle_get_request(HttpRequest *httpRequest, int clientFD) {
     write_http_response(&httpResponse, clientFD);
 }
 
+void handle_post_request(HttpRequest *httpRequest, int clientFD){
+    HttpResponse httpResponse;
+    httpResponse.Version = httpRequest->Version;
+    PostHandler *postHandler = post_handler(httpRequest);
+    if (postHandler == NULL) {
+        printf("Request target not found. Request Target: %s\n", httpRequest->RequestTarget);
+        set_status_response(&httpResponse, NOT_FOUND);
+        httpResponse.ContentBody = "";
+    } else {
+        Response postResponse = postHandler->callback(httpRequest->ContentBody);
+        httpResponse.ContentBody = postResponse.ContentBody;
+        set_status_response(&httpResponse, postResponse.StatusCode);
+    }
+    set_content_length_response(&httpResponse);
+    set_date_response(&httpResponse);
+    set_content_type_response(&httpResponse);
+    write_http_response(&httpResponse, clientFD);
+}
+
+// May be able to also combine both `get_handler` and `post_handler`
 GetHandler *get_handler(HttpRequest *httpRequest) {
-    GetHandler *curr = head;
+    GetHandler *curr = getHead;
+    while (curr != NULL) {
+        // found the request target
+        if (strcmp(curr->RequestTarget, httpRequest->RequestTarget) == 0){
+            break;
+        }
+        curr = curr->Next;
+    }
+    return curr;
+}
+
+PostHandler *post_handler(HttpRequest *httpRequest) {
+    PostHandler *curr = postHead;
     while (curr != NULL) {
         // found the request target
         if (strcmp(curr->RequestTarget, httpRequest->RequestTarget) == 0){

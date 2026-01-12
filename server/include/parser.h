@@ -13,7 +13,7 @@ typedef struct {
 HttpRequest parse_http_request(int clientFD);
 
 void get_http_request_string(int clientFD, HttpRequestString *requestString);
-bool found_end_http_request(char *httpRequest, size_t requestLength);
+bool found_header_end(char *buf);
 
 void parse_startline(HttpRequestString *httpRequestString, HttpRequest *request);
 char *parse_startline_str(HttpRequestString *httpRequestString);
@@ -22,6 +22,7 @@ void set_startline_request_target(HttpRequest *httpRequest, char *startLineStr);
 void set_startline_version(HttpRequest *httpRequest, char *startLineStr);
 
 char *get_http_request_entry(HttpRequestString *httpRequestString, char *entry);
+char *get_http_request_content_body(HttpRequestString *httpRequestString);
 
 //void set_content_length_response(HttpResponse *httpResponse, char *contentBody);
 //void set_status_response(HttpResponse *httpResponse, StatusCode *statusCode);

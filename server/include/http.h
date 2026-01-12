@@ -7,11 +7,14 @@
 #include "http_models.h"
 
 void start_http(int port);
-void register_get(char *requestTarget, GetResponse (*callback)());
+void register_get(char *requestTarget, Response (*callback)());
+void register_post(char *requestTarget, Response (*callback)(char *));
 void handle_http_request(int clientFD);
 
 void handle_get_request(HttpRequest *httpRequest, int clientFD);
+void handle_post_request(HttpRequest *httpRequest, int clientFD);
 GetHandler *get_handler(HttpRequest *httpRequest);
+PostHandler *post_handler(HttpRequest *httpRequest);
 
 void set_content_length_response(HttpResponse *httpResponse);
 void set_status_response(HttpResponse *httpResponse, StatusCode statusCode);

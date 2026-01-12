@@ -1,4 +1,5 @@
 #include "parser.h"
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,18 +21,23 @@ HttpRequest parse_http_request(int clientFD) {
     request.UserAgent = get_http_request_entry(&requestString, "User-Agent");
     request.Accept = get_http_request_entry(&requestString, "Accept");
     request.AcceptLanguage = get_http_request_entry(&requestString, "Accept-Language");
+    request.ContentBody = get_http_request_content_body(&requestString);
     return request;
 }
 
+// Actual logic would need to find the end of the request and not just the end
+// of the header. This works as a toy function but in reality, would need to make sure
+// to keep reading for requests that contain large Content Bodies
 void get_http_request_string(int clientFD, HttpRequestString *requestString) {
     char temp[CHUNK_SIZE];
     char *headers = NULL;
     size_t headersLen = 0;
 
-    while (!found_end_http_request(headers, headersLen)) {
+    while (!found_header_end(headers)) {
         ssize_t chunk = recv(clientFD, temp, sizeof(temp), 0);
         if (chunk <= 0) {
             perror("There was an error reading from the chunk\n");
+            break;
         }
         headers = realloc(headers, headersLen + chunk);
         memcpy(headers + headersLen, temp, chunk);
@@ -48,17 +54,16 @@ void get_http_request_string(int clientFD, HttpRequestString *requestString) {
     requestString->HeaderLength = headersLen;
 }
 
-bool found_end_http_request(char *httpRequest, size_t requestLength) {
-    if (requestLength < 4) {
+bool found_header_end(char *buf) {
+    if (buf == NULL)
+        return false;
+
+    char *result = strstr(buf, "\r\n\r\n");
+    if (result != NULL) {
+        return true;
+    } else {
         return false;
     }
-    // Check if the last 4 characters in httpRequest is \r\n\r\n
-    // This signifies the end of the header
-    if (httpRequest[requestLength - 1] == '\n' && httpRequest[requestLength - 3] == '\n' &&
-        httpRequest[requestLength - 2] == '\r' && httpRequest[requestLength - 4] == '\r') {
-        return true;
-    }
-    return false;
 }
 
 void parse_startline(HttpRequestString *httpRequestString, HttpRequest *request) {
@@ -86,7 +91,7 @@ char *parse_startline_str(HttpRequestString *httpRequestString) {
 void set_starline_method(HttpRequest *httpRequest, char *startLineStr) {
     char method[MAX_METHOD_LENTH];
     int methodLen = 0;
-    for (int methodLen = 0; methodLen < MAX_METHOD_LENTH && startLineStr[methodLen] != ' '; ++methodLen) {
+    for (methodLen = 0; methodLen < MAX_METHOD_LENTH && startLineStr[methodLen] != ' '; ++methodLen) {
         method[methodLen] = startLineStr[methodLen];
     }
     if (strncmp(method, "GET", methodLen) == 0) {
@@ -162,4 +167,15 @@ char *get_http_request_entry(HttpRequestString *httpRequestString, char *entry) 
     strncpy(result, resultStart, length - 1);
     result[length - 1] = '\0';
     return result;
+}
+
+char *get_http_request_content_body(HttpRequestString *httpRequestString) {
+    char *result = strstr(httpRequestString->Header, "Content-Length:");
+    if (result) {
+        char contentBodySeperation[] = "\r\n\r\n";
+        result = strstr(result, contentBodySeperation);
+        result += strlen(contentBodySeperation);
+        return result;
+    }
+    return " ";
 }
